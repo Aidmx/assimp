@@ -2,9 +2,7 @@ PyAssimp: Python bindings for libassimp
 =======================================
 
 A simple Python wrapper for Assimp using ``ctypes`` to access the
-library. Requires Python >= 2.6.
-
-Python 3 support is mostly here, but not well tested.
+library. Requires Python >= 3.10.
 
 Note that pyassimp is not complete. Many ASSIMP features are missing.
 
@@ -49,30 +47,27 @@ substituted by assertions ...):
 .. code:: python
 
 
-    from pyassimp import *
-    scene = load('hello.3ds')
+    from pyassimp import load
+    with load('hello.3ds') as scene:
 
-    assert len(scene.meshes)
-    mesh = scene.meshes[0]
+        assert len(scene.meshes)
+        mesh = scene.meshes[0]
 
-    assert len(mesh.vertices)
-    print(mesh.vertices[0])
+        assert len(mesh.vertices)
+        print(mesh.vertices[0])
 
-    # don't forget this one, or you will leak!
-    release(scene)
 
 Another example to list the 'top nodes' in a scene:
 
 .. code:: python
 
 
-    from pyassimp import *
-    scene = load('hello.3ds')
+    from pyassimp import load
+    with load('hello.3ds') as scene:
 
-    for c in scene.rootnode.children:
-        print(str(c))
+        for c in scene.rootnode.children:
+            print(str(c))
 
-    release(scene)
 
 INSTALL
 -------
@@ -81,15 +76,19 @@ Install ``pyassimp`` by running:
 
 ::
 
-    $ python setup.py install
+    $ pip install .
 
 PyAssimp requires a assimp dynamic library (``DLL`` on windows, ``.so``
-on linux, ``.dynlib`` on macOS) in order to work. The default search
+on linux, ``.dylib`` on macOS) in order to work. The default search
 directories are:
 
 -  the current directory
 -  on linux additionally: ``/usr/lib``, ``/usr/local/lib``,
    ``/usr/lib/x86_64-linux-gnu``
+-  on windows additionally: every directory in ``PATH``
+
+The library must match the architecture of your Python interpreter
+(e.g. an ARM64 Python on Windows on ARM needs an ARM64 ``assimp-*.dll``).
 
 To build that library, refer to the Assimp master ``INSTALL``
 instructions. To look in more places, edit ``./pyassimp/helper.py``.

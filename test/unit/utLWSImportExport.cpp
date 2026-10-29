@@ -3,9 +3,7 @@
 Open Asset Import Library (assimp)
 ---------------------------------------------------------------------------
 
-Copyright (c) 2006-2019, assimp team
-
-
+Copyright (c) 2006-2026, assimp team
 
 All rights reserved.
 
@@ -40,26 +38,28 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ---------------------------------------------------------------------------
 */
-#include "UnitTestPCH.h"
 #include "AbstractImportExportBase.h"
+#include "UnitTestPCH.h"
 #include <assimp/postprocess.h>
 
 #include <assimp/Importer.hpp>
 
-using namespace Assimp;
+#include <array>
+#include <string>
 
+using namespace Assimp;
 
 class utLWSImportExport : public AbstractImportExportBase {
 public:
     virtual bool importerTest() {
         Assimp::Importer importer;
-        const aiScene *scene = importer.ReadFile( ASSIMP_TEST_MODELS_DIR "/LWS/move_x.lws", aiProcess_ValidateDataStructure);
+        const aiScene *scene = importer.ReadFile(ASSIMP_TEST_MODELS_DIR "/LWS/move_x.lws", aiProcess_ValidateDataStructure);
         return nullptr != scene;
     }
 };
 
-TEST_F( utLWSImportExport, importLWSFromFileTest ) {
-    EXPECT_TRUE( importerTest() );
+TEST_F(utLWSImportExport, importLWSFromFileTest) {
+    EXPECT_TRUE(importerTest());
 }
 
 TEST_F(utLWSImportExport, importLWSmove_x_post_linear) {
@@ -140,3 +140,26 @@ TEST_F(utLWSImportExport, importLWSmove_xz_spline) {
     EXPECT_NE(nullptr, scene);
 }
 
+TEST_F(utLWSImportExport, importMissingVersionFails) {
+    // A header without a version line used to return an empty scene with
+    // no root node, which later post-processing steps dereferenced. The
+    // trailing blank lines keep the input above the 8-byte minimum, and the
+    // form feed makes a second line whose first token is empty.
+    const std::array<std::string, 3> files = { "LWSC\n\n\n\n", "LWMO\r\n\r\n", "LWSC\n\f\n\n" };
+    for (const std::string &data : files) {
+        ::Assimp::Importer importer;
+        const aiScene *scene = importer.ReadFileFromMemory(data.data(), data.size(), 0, "lws");
+        EXPECT_EQ(nullptr, scene);
+
+        importer.ApplyPostProcessing(aiProcess_OptimizeGraph | aiProcess_PopulateArmatureData);
+    }
+}
+
+TEST_F(utLWSImportExport, importFileWithoutElementsFails) {
+    const std::string data(16, '\n'); // parses to an empty element list
+    ::Assimp::Importer importer;
+    const aiScene *scene = importer.ReadFileFromMemory(data.data(), data.size(), 0, "lws");
+    ASSERT_EQ(nullptr, scene);
+    const std::string error = importer.GetErrorString();
+    ASSERT_NE(error.find("no elements"), std::string::npos);
+}

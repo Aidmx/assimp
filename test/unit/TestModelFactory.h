@@ -3,9 +3,7 @@
 Open Asset Import Library (assimp)
 ---------------------------------------------------------------------------
 
-Copyright (c) 2006-2019, assimp team
-
-
+Copyright (c) 2006-2026, assimp team
 
 All rights reserved.
 
@@ -49,25 +47,21 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace Assimp {
 
-class TestModelFacttory {
+class TestModelFactory {
 public:
-    TestModelFacttory() {
-        // empty
-    }
+    TestModelFactory() = default;
 
-    ~TestModelFacttory() {
-        // empty
-    }
+    ~TestModelFactory() = default;
 
     static aiScene *createDefaultTestModel( float &opacity ) {
-        aiScene *scene( new aiScene );
+        auto *scene = new aiScene;
         scene->mNumMaterials = 1;
         scene->mMaterials = new aiMaterial*[scene->mNumMaterials];
         scene->mMaterials[ 0 ] = new aiMaterial;
         aiColor3D color( 1, 0, 0 );
         EXPECT_EQ( AI_SUCCESS, scene->mMaterials[ 0 ]->AddProperty( &color, 1, AI_MATKEY_COLOR_DIFFUSE ) );
 
-        ::srand( static_cast< unsigned int >( ::time( NULL ) ) );
+        ::srand(static_cast<unsigned int>(::time(nullptr)));
         opacity = float( rand() ) / float( RAND_MAX );
         EXPECT_EQ( AI_SUCCESS, scene->mMaterials[ 0 ]->AddProperty( &opacity, 1, AI_MATKEY_OPACITY ) );
 

@@ -3,9 +3,7 @@
 Open Asset Import Library (assimp)
 ---------------------------------------------------------------------------
 
-Copyright (c) 2006-2019, assimp team
-
-
+Copyright (c) 2006-2026, assimp team
 
 All rights reserved.
 
@@ -40,11 +38,11 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ---------------------------------------------------------------------------
 */
-#include "UnitTestPCH.h"
 #include "AbstractImportExportBase.h"
+#include "UnitTestPCH.h"
 
-#include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
+#include <assimp/Importer.hpp>
 
 using namespace Assimp;
 
@@ -52,11 +50,26 @@ class utCSMImportExport : public AbstractImportExportBase {
 public:
     virtual bool importerTest() {
         Assimp::Importer importer;
-        const aiScene *scene = importer.ReadFile( ASSIMP_TEST_MODELS_DIR "/CSM/ThomasFechten.csm", aiProcess_ValidateDataStructure );
+        const aiScene *scene = importer.ReadFile(ASSIMP_TEST_MODELS_DIR "/CSM/ThomasFechten.csm", aiProcess_ValidateDataStructure);
         return nullptr != scene;
     }
 };
 
-TEST_F( utCSMImportExport, importBlenFromFileTest ) {
-    EXPECT_TRUE( importerTest() );
+TEST_F(utCSMImportExport, importBlenFromFileTest) {
+    EXPECT_TRUE(importerTest());
+}
+
+TEST_F(utCSMImportExport, importMalformedZeroFrameRange) {
+    Assimp::Importer importer;
+    const aiScene *scene = importer.ReadFile(ASSIMP_TEST_MODELS_DIR "/CSM/malformed_zero_framerange.csm", 0);
+    EXPECT_NE(nullptr, scene);
+}
+
+TEST_F(utCSMImportExport, importDropoutBufferOverflow) {
+    // A DROPOUT marker makes one channel skip a sample, so its key count lags
+    // behind the others. The $points growth logic used to reallocate every
+    // channel off a shared counter and wrote past the lagging channel's buffer.
+    Assimp::Importer importer;
+    const aiScene *scene = importer.ReadFile(ASSIMP_TEST_MODELS_DIR "/CSM/invalid/DropoutBufferOverflow.csm", 0);
+    EXPECT_NE(nullptr, scene);
 }

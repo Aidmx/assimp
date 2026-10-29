@@ -3,9 +3,7 @@
 Open Asset Import Library (assimp)
 ---------------------------------------------------------------------------
 
-Copyright (c) 2006-2019, assimp team
-
-
+Copyright (c) 2006-2026, assimp team
 
 All rights reserved.
 
@@ -40,11 +38,11 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ---------------------------------------------------------------------------
 */
-#include "UnitTestPCH.h"
 #include "AbstractImportExportBase.h"
+#include "UnitTestPCH.h"
 
-#include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
+#include <assimp/Importer.hpp>
 
 using namespace Assimp;
 
@@ -52,13 +50,21 @@ class utHMPImportExport : public AbstractImportExportBase {
 public:
     virtual bool importerTest() {
         Assimp::Importer importer;
-        const aiScene *scene = importer.ReadFile( ASSIMP_TEST_MODELS_DIR "/HMP/terrain.hmp", aiProcess_ValidateDataStructure );
+        const aiScene *scene = importer.ReadFile(ASSIMP_TEST_MODELS_DIR "/HMP/terrain.hmp", aiProcess_ValidateDataStructure);
         return nullptr != scene;
-
-        return true;
     }
 };
 
-TEST_F( utHMPImportExport, importHMPFromFileTest ) {
-    EXPECT_TRUE( importerTest() );
+TEST_F(utHMPImportExport, importHMPFromFileTest) {
+    EXPECT_TRUE(importerTest());
+}
+
+TEST_F(utHMPImportExport, rejectsUnterminatedExternalTextureName) {
+    Assimp::Importer importer;
+    const aiScene *scene = importer.ReadFile(
+            ASSIMP_TEST_MODELS_DIR "/HMP/invalid_external_texture_name.hmp",
+            aiProcess_ValidateDataStructure);
+
+    EXPECT_EQ(nullptr, scene);
+    EXPECT_STREQ("Invalid MDL file. External texture path is not null-terminated.", importer.GetErrorString());
 }

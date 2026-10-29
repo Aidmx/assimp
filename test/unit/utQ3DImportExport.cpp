@@ -3,9 +3,7 @@
 Open Asset Import Library (assimp)
 ---------------------------------------------------------------------------
 
-Copyright (c) 2006-2019, assimp team
-
-
+Copyright (c) 2006-2026, assimp team
 
 All rights reserved.
 
@@ -44,8 +42,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "AbstractImportExportBase.h"
 
-#include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
+#include <assimp/Importer.hpp>
 
 using namespace Assimp;
 
@@ -53,11 +51,29 @@ class utQ3DImportExport : public AbstractImportExportBase {
 public:
     virtual bool importerTest() {
         Assimp::Importer importer;
-        const aiScene *scene = importer.ReadFile( ASSIMP_TEST_MODELS_DIR "/Q3D/earth.q3o", aiProcess_ValidateDataStructure );
+        const aiScene *scene = importer.ReadFile(ASSIMP_TEST_MODELS_DIR "/Q3D/earth.q3o", aiProcess_ValidateDataStructure);
         return nullptr != scene;
     }
 };
 
 TEST_F(utQ3DImportExport, importTest) {
-    EXPECT_TRUE( importerTest() );
+    EXPECT_TRUE(importerTest());
+}
+
+TEST_F(utQ3DImportExport, importMalformedNormalIndex) {
+    // a face references a vertex index that is valid for the position list but
+    // out of range for the shorter normal list; the importer must not read
+    // past curMesh.normals
+    Assimp::Importer importer;
+    const aiScene *scene = importer.ReadFile(ASSIMP_TEST_MODELS_DIR "/Q3D/malformed_normal_index.q3o", 0);
+    EXPECT_NE(nullptr, scene);
+}
+
+TEST_F(utQ3DImportExport, importMalformedFaceIndexCount) {
+    // a face declares more indices than the mesh has vertices; the face-normal
+    // fallback must index verts with the (clamped) last face index, not with the
+    // raw index count, otherwise it reads past curMesh.verts
+    Assimp::Importer importer;
+    const aiScene *scene = importer.ReadFile(ASSIMP_TEST_MODELS_DIR "/Q3D/malformed_face_index.q3o", 0);
+    EXPECT_NE(nullptr, scene);
 }

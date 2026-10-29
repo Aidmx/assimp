@@ -5,19 +5,13 @@ This is the main-module of PyAssimp.
 """
 
 import sys
-if sys.version_info < (2,6):
-    raise RuntimeError('pyassimp: need python 2.6 or newer')
-
-# xrange was renamed range in Python 3 and the original range from Python 2 was removed.
-# To keep compatibility with both Python 2 and 3, xrange is set to range for version 3.0 and up.
-if sys.version_info >= (3,0):
-    xrange = range
-
-
-try: import numpy
-except ImportError: numpy = None
+try: 
+    import numpy
+except ImportError: 
+    numpy = None
 import logging
 import ctypes
+from contextlib import contextmanager
 logger = logging.getLogger("pyassimp")
 # attach default null handler to logger so it doesn't complain
 # even if you don't attach another handler to logger
@@ -48,13 +42,13 @@ def make_tuple(ai_obj, type = None):
             #import pdb;pdb.set_trace()
         else:
             res = [getattr(ai_obj, e[0]) for e in ai_obj._fields_]
-            res = [res[i:i+4] for i in xrange(0,16,4)]
+            res = [res[i:i+4] for i in range(0,16,4)]
     elif isinstance(ai_obj, structs.Matrix3x3):
         if numpy:
             res = numpy.array([getattr(ai_obj, e[0]) for e in ai_obj._fields_]).reshape((3,3))
         else:
             res = [getattr(ai_obj, e[0]) for e in ai_obj._fields_]
-            res = [res[i:i+3] for i in xrange(0,9,3)]
+            res = [res[i:i+3] for i in range(0,9,3)]
     else:
         if numpy:
             res = numpy.array([getattr(ai_obj, e[0]) for e in ai_obj._fields_])
@@ -63,12 +57,8 @@ def make_tuple(ai_obj, type = None):
 
     return res
 
-# Returns unicode object for Python 2, and str object for Python 3.
 def _convert_assimp_string(assimp_string):
-    if sys.version_info >= (3, 0):
-        return str(assimp_string.data, errors='ignore')
-    else:
-        return unicode(assimp_string.data, errors='ignore')
+    return str(assimp_string.data, errors='ignore')
 
 # It is faster and more correct to have an init function for each assimp class
 def _init_face(aiFace):
@@ -82,7 +72,8 @@ def call_init(obj, caller = None):
         _init(obj,parent=caller)
 
 def _is_init_type(obj):
-    if helper.hasattr_silent(obj,'contents'): #pointer
+
+    if obj and helper.hasattr_silent(obj,'contents'): #pointer
         return _is_init_type(obj[0])
     # null-pointer case that arises when we reach a mesh attribute
     # like mBitangents which use mNumVertices rather than mNumBitangents
@@ -93,7 +84,7 @@ def _is_init_type(obj):
         return False
     tname = obj.__class__.__name__
     return not (tname[:2] == 'c_' or tname == 'Structure' \
-            or tname == 'POINTER') and not isinstance(obj,int)
+            or tname == 'POINTER') and not isinstance(obj, (int, str, bytes))
 
 def _init(self, target = None, parent = None):
     """
@@ -109,6 +100,10 @@ def _init(self, target = None, parent = None):
     for m in dirself:
 
         if m.startswith("_"):
+            continue
+
+        # We should not be accessing `mPrivate` according to structs.Scene.
+        if m == 'mPrivate':
             continue
 
         if m.startswith('mNum'):
@@ -137,7 +132,7 @@ def _init(self, target = None, parent = None):
             logger.debug(str(self) + ": Added array " + str(getattr(target, name)) +  " as self." + name.lower())
             continue
 
-        if m.startswith('m'):
+        if m.startswith('m') and len(m) > 1 and m[1].upper() == m[1]:
 
             if name == "parent":
                 setattr(target, name, parent)
@@ -271,6 +266,13 @@ def recur_pythonize(node, scene):
     for c in node.children:
         recur_pythonize(c, scene)
 
+def release(scene):
+    '''
+    Release resources of a loaded scene.
+    '''
+    _assimp_lib.release(ctypes.pointer(scene))
+
+@contextmanager
 def load(filename,
          file_type  = None,
          processing = postprocess.aiProcess_Triangulate):
@@ -296,6 +298,7 @@ def load(filename,
     Scene object with model data
     '''
 
+    from ctypes import c_char_p
     if hasattr(filename, 'read'):
         # This is the case where a file object has been passed to load.
         # It is calling the following function:
@@ -309,7 +312,7 @@ def load(filename,
         model = _assimp_lib.load_mem(data,
                                      len(data),
                                      processing,
-                                     file_type)
+                                     c_char_p(file_type.encode(sys.getfilesystemencoding())))
     else:
         # a filename string has been passed
         model = _assimp_lib.load(filename.encode(sys.getfilesystemencoding()), processing)
@@ -318,7 +321,10 @@ def load(filename,
         raise AssimpError('Could not import file!')
     scene = _init(model.contents)
     recur_pythonize(scene.rootnode, scene)
-    return scene
+    try:
+        yield scene
+    finally:
+        release(scene)
 
 def export(scene,
            filename,
@@ -372,8 +378,18 @@ def export_blob(scene,
         raise AssimpError('Could not export scene to blob!')
     return exportBlobPtr
 
-def release(scene):
-    _assimp_lib.release(ctypes.pointer(scene))
+def available_formats():
+    """
+    Return a list of file format extensions supported to import.
+
+    Returns
+    ---------
+    A list of upper-case file extensions, e.g. [3DS, OBJ]
+    """
+    from ctypes import byref
+    extension_list = structs.String()
+    _assimp_lib.dll.aiGetExtensionList(byref(extension_list))
+    return [e[2:].upper() for e in str(extension_list.data, sys.getfilesystemencoding()).split(";")]
 
 def _finalize_texture(tex, target):
     setattr(target, "achformathint", tex.achFormatHint)
